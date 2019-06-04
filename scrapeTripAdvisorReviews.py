@@ -6,6 +6,7 @@ sys.setdefaultencoding('utf8')
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.action_chains import ActionChains
 import time
@@ -134,7 +135,10 @@ def getHotelData(BASE_URL, HOTEL_URL, outputDir, hotelInfoFile):
     driver = webdriver.Firefox()
     driver.get(HOTEL_URL)
 
-    more_button = driver.find_element_by_class_name("ulBlueLinks")
+    try:
+        more_button = driver.find_element_by_class_name("ulBlueLinks")
+    except NoSuchElementException:
+        more_button = None
     if more_button:
         more_button.click()
         time.sleep(2)
@@ -170,7 +174,7 @@ def getHotelData(BASE_URL, HOTEL_URL, outputDir, hotelInfoFile):
 
 	
     address = "; ".join([street_address, locality, country])
-    rating = makeString( soup.find("span", property="ratingValue")['content'])
+    rating = makeString( soup.find("span", class_="ui_bubble_rating")['alt'])
     rank = makeString(  soup.find("b", class_="rank").get_text() )
     hotel_id =  str(  abs(hash(hotel_name)) % (10 ** 10) ) # generate a hotel ID from hotel name using hash
     
@@ -194,19 +198,24 @@ def getHotelData(BASE_URL, HOTEL_URL, outputDir, hotelInfoFile):
         # check the next page here
         next_button = soup.find("a", class_="next")
 
-        if "disabled" not in next_button['class']:
-            # get the next page and parse data
-            url_part = next_button['href']
-            driver.find_element_by_class_name("next").click()
-            time.sleep(2)
-            more_button = driver.find_element_by_class_name("ulBlueLinks")
-            if more_button:
-                more_button.click()
+        if next_button:
+            if "disabled" not in next_button['class']:
+                # get the next page and parse data
+                url_part = next_button['href']
+                driver.find_element_by_class_name("next").click()
                 time.sleep(2)
-            page_source = driver.page_source
-            soup = BeautifulSoup(page_source, 'html.parser')
-        else:
-            break
+                try:
+                    more_button = driver.find_element_by_class_name("ulBlueLinks")
+                except NoSuchElementException:
+                    more_button = None
+                if more_button:
+                    more_button.click()
+                    time.sleep(2)
+                page_source = driver.page_source
+                soup = BeautifulSoup(page_source, 'html.parser')
+            else:
+                break
+        break
 
     
 	
